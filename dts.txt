@@ -1,0 +1,30 @@
+&am33xx_pinmux {
+	hw4_pins: hw4_pins {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x834, PIN_OUTPUT | MUX_MODE7)		/* gpmc_ad13.gpio1_11 */
+			AM33XX_IOPAD(0x830, PIN_OUTPUT | MUX_MODE7)		/* gpmc_ad12.gpio1_12 */
+			AM33XX_IOPAD(0x828, PIN_OUTPUT | MUX_MODE7)		/* gpmc_ad10.gpio1_14 */
+			AM33XX_IOPAD(0x83c, PIN_OUTPUT | MUX_MODE7)		/* gpmc_ad15.gpio1_15 */
+			AM33XX_IOPAD(0x838, PIN_INPUT  | MUX_MODE7)		/* gpmc_ad14.gpio1_16 */
+			AM33XX_IOPAD(0x82c, PIN_INPUT  | MUX_MODE7)		/* gpmc_ad11.gpio1_17 */
+			AM33XX_IOPAD(0x87c, PIN_INPUT  | MUX_MODE7)		/* gpmc_csn0.gpio1_26 */
+		>;
+	};
+};
+
+/ {
+	hw4 {
+		compatible = "globallogic,hw4";
+		column0-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+		column1-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+		column2-gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+		column3-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+		row0-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
+		row1-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
+		row2-gpios = <&gpio1 26 GPIO_ACTIVE_LOW>;
+		debounce-delay-ms = <5>;
+		poll-delay-ms = <50>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hw4_pins>;
+	};
+};
