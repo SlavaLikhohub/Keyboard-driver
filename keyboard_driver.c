@@ -15,7 +15,7 @@
 #define ROWS		4
 #define COLUMN_STR	"column"
 #define ROW_STR		"row"
-#define GPIO_DELAY	300
+#define GPIO_DELAY	1
 
 struct keyboard {
 	struct gpio_desc *columns[COLUMNS];
@@ -24,6 +24,12 @@ struct keyboard {
 	struct workqueue_struct *wq;
 	struct delayed_work work;
 	u32 delay_ms;
+};
+
+static const char keys[COLUMNS][ROWS] = {
+	{'1', '4', '7', '*'},
+	{'2', '5', '8', '0'},
+	{'3', '6', '9', '#'},
 };
 
 void print_keys(const bool pressed[COLUMNS][ROWS])
@@ -51,6 +57,9 @@ static void scan_column(struct keyboard *keyboard, int x)
 
 	for (y = 0; y < ROWS; y++) {
 		val = gpiod_get_value(keyboard->rows[y]);
+		if (!keyboard->pressed[x][y] && !val) {
+			pr_info("%c\n", keys[x][y]);
+		}
 		keyboard->pressed[x][y] = !val;
 	}
 }
@@ -74,7 +83,7 @@ static void keys_polling(struct work_struct *data)
 		msleep(GPIO_DELAY);
 	}
 
-	print_keys(keyboard->pressed);
+//	print_keys(keyboard->pressed);
 
 	ret =  queue_delayed_work(keyboard->wq, &keyboard->work,
 				  msecs_to_jiffies(keyboard->delay_ms));
