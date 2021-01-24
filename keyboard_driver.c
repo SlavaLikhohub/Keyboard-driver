@@ -8,12 +8,14 @@
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
+#include <linux/delay.h>
 
 #define DRIVER_NAME	"keyboard_driver"
 #define COLUMNS		3
 #define ROWS		4
 #define COLUMN_STR	"column"
 #define ROW_STR		"row"
+#define GPIO_DELAY	300
 
 struct keyboard {
 	struct gpio_desc *columns[COLUMNS];
@@ -28,29 +30,35 @@ void print_keys(const bool pressed[COLUMNS][ROWS])
 {
 	int x, y;
 	char ch;
+	char row[COLUMNS + 1] = {0};
+
+	pr_info("#####\n");
 	for (y = 0; y < ROWS; y++) {
 		for (x = 0; x < COLUMNS; x++) {
 			ch = pressed[x][y] ? 'X' : '.';
-			pr_info("%c", ch);
+			row[x] = ch;
 		}
-		pr_info("\n");
+		pr_info("#%s#\n", row);
 	}
+	pr_info("#####\n");
 }
 
 static void scan_column(struct keyboard *keyboard, int x)
 {
 	int y;
 	int val;
+	pr_debug("++%s: %d", __func__, x);
 
 	for (y = 0; y < ROWS; y++) {
 		val = gpiod_get_value(keyboard->rows[y]);
-		keyboard->pressed[x][y] = val;
+		keyboard->pressed[x][y] = !val;
 	}
 }
 
 static void keys_polling(struct work_struct *data)
 {
 	int x;
+	int ret;
 	struct delayed_work *work = container_of(data, struct delayed_work, work);
 	struct keyboard *keyboard = container_of(work, struct keyboard, work);
 
@@ -58,11 +66,21 @@ static void keys_polling(struct work_struct *data)
 
 	for (x = 0; x < COLUMNS; x++) {
 		gpiod_direction_output(keyboard->columns[x], 0);
+		msleep(GPIO_DELAY);
+		mb();
 		scan_column(keyboard, x);
 		gpiod_direction_input(keyboard->columns[x]);
+		mb();
+		msleep(GPIO_DELAY);
 	}
 
 	print_keys(keyboard->pressed);
+
+	ret =  queue_delayed_work(keyboard->wq, &keyboard->work,
+				  msecs_to_jiffies(keyboard->delay_ms));
+	if (false == ret) {
+		pr_err("Can't queue work\n");
+	}
 }
 
 static int keyboard_probe(struct platform_device *pdev)
@@ -82,6 +100,8 @@ static int keyboard_probe(struct platform_device *pdev)
 		pr_err("Can't allocate memory\n");
 		return -ENOMEM;
 	}
+
+	dev_set_drvdata(dev, keyboard);
 
 	for (i = 0; i < COLUMNS; i++) {
 		sprintf(gpio_name, "%s%d", COLUMN_STR, i);
@@ -117,8 +137,9 @@ static int keyboard_probe(struct platform_device *pdev)
 
 	keyboard->wq = create_workqueue("Keys polling");
 	INIT_DELAYED_WORK(&keyboard->work, keys_polling);
-	ret =  queue_delayed_work(keyboard->wq, &keyboard->work, keyboard->delay_ms);
-	if (ret) {
+	ret =  queue_delayed_work(keyboard->wq, &keyboard->work,
+				  msecs_to_jiffies(keyboard->delay_ms));
+	if (false == ret) {
 		pr_err("Can't queue work\n");
 		return ret;
 	}
@@ -128,8 +149,11 @@ static int keyboard_probe(struct platform_device *pdev)
 
 static int keyboard_remove(struct platform_device *pdev)
 {
+	struct keyboard * keyboard = dev_get_drvdata(&pdev->dev);
+
 	pr_debug("++%s\n", __func__);
 
+	cancel_delayed_work_sync(&keyboard->work);
 	return 0;
 }
 

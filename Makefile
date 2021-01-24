@@ -4,7 +4,7 @@ INSTALL_PATH := /srv/nfs/busybox/test_modules
 ifneq ($(KERNELRELEASE),)
 # kbuild part of makefile
 obj-m   := $(addsuffix .o, $(TARGET))
-ccflags-y := -g 
+ccflags-y := -g -DDEBUG
 else
 
 # normal makefile
